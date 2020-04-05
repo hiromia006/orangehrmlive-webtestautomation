@@ -29,6 +29,10 @@ public class SelectComponent extends BaseComponent {
         }
     }
 
+    public String getSelectedOption() {
+        return isOptionsLoaded() ? this.el("option[selected='selected']").text().trim() : "";
+    }
+
     public boolean isOptionsLoaded() {
         return await().atMost(60, TimeUnit.SECONDS).until(this.find("option")).size().greaterThan(1);
     }
