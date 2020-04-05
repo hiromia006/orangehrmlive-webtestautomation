@@ -1,0 +1,145 @@
+plugins {
+    id 'java'
+    id "de.undercouch.download" version "3.2.0"
+}
+
+group 'orangehrmlive-webtestautomation'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile 'org.fluentlenium:fluentlenium-testng:3.9.1'
+    testCompile 'org.fluentlenium:fluentlenium-assertj:3.9.1'
+    testCompile 'org.seleniumhq.selenium:selenium-remote-driver:3.141.59'
+    testCompile 'org.seleniumhq.selenium:selenium-chrome-driver:3.141.59'
+    testCompile 'org.seleniumhq.selenium:selenium-firefox-driver:3.141.59'
+    testCompile 'com.thedeanda:lorem:2.1'
+    testCompile 'com.warrenstrange:googleauth:1.4.0'
+    testCompile 'org.apache.commons:commons-lang3:3.9'
+    testCompile 'com.auth0:java-jwt:3.8.3'
+    implementation 'org.slf4j:slf4j-simple:1.7.28'
+    implementation 'com.j2html:j2html:1.4.0'
+    testCompile 'org.testng:testng:6.10'
+    testCompile 'org.testng:testng:6.10'
+}
+
+test{
+    // enable TestNG support (default is JUnit)
+    useTestNG();
+}
+
+String webDriverDir = "$projectDir/webdriver"
+String chromeVersion = '78.0.3904.70'
+String geckoVersion = 'v0.26.0'
+
+
+// -- Download tasks -- start --
+
+import de.undercouch.gradle.tasks.download.Download
+import org.gradle.internal.os.OperatingSystem
+
+task downloadChromeDriverZip(type: Download) {
+    if (OperatingSystem.current().isMacOsX()) {
+        src "http://chromedriver.storage.googleapis.com/${chromeVersion}/chromedriver_mac64.zip"
+    } else if (OperatingSystem.current().isLinux()) {
+        src "http://chromedriver.storage.googleapis.com/${chromeVersion}/chromedriver_linux64.zip"
+    } else {
+        src "http://chromedriver.storage.googleapis.com/${chromeVersion}/chromedriver_win32.zip"
+    }
+    dest new File(webDriverDir, "/chrome/chromedriver-${chromeVersion}.zip")
+    quiet true
+    overwrite true
+    onlyIfNewer true
+    compress false
+    onlyIf {
+        !dest.exists()
+    }
+}
+
+task downloadAndUnzipChromeDriver(dependsOn: downloadChromeDriverZip, type: Copy) {
+    from zipTree(downloadChromeDriverZip.dest)
+    into new File(webDriverDir, "/chrome/${chromeVersion}")
+}
+
+task downloadGeckoDriverZip(type: Download) {
+    if (OperatingSystem.current().isMacOsX()) {
+        src "https://github.com/mozilla/geckodriver/releases/download/${geckoVersion}/geckodriver-${geckoVersion}-macos.tar.gz"
+        dest new File(webDriverDir, "/gecko/geckodriver-${geckoVersion}.tar.gz")
+    } else if (OperatingSystem.current().isLinux()) {
+        src "https://github.com/mozilla/geckodriver/releases/download/${geckoVersion}/geckodriver-${geckoVersion}-linux64.tar.gz"
+        dest new File(webDriverDir, "/gecko/geckodriver-${geckoVersion}.tar.gz")
+    } else {
+        src "https://github.com/mozilla/geckodriver/releases/download/${geckoVersion}/geckodriver-${geckoVersion}-win64.zip"
+        dest new File(webDriverDir, "/gecko/geckodriver-${geckoVersion}.zip")
+    }
+    quiet true
+    overwrite true
+    onlyIfNewer true
+    compress false
+    onlyIf {
+        !dest.exists()
+    }
+}
+
+task downloadAndUnzipGeckoDriver(dependsOn: downloadGeckoDriverZip, type: Copy) {
+    if (OperatingSystem.current().isWindows()) {
+        from zipTree(downloadGeckoDriverZip.dest)
+    } else {
+        from tarTree(resources.gzip(downloadGeckoDriverZip.dest))
+    }
+    into new File(webDriverDir, "/gecko/${geckoVersion}")
+}
+
+
+// -- Download tasks -- end --
+
+test {
+    useTestNG() {
+        if (project.hasProperty('testng.suites')) {
+            project.property('testng.suites').toString().split(',').each { suite ->
+                suites 'src/test/resources/' + suite + '-suite.xml'
+            }
+        }
+
+        if (project.hasProperty('testng.parallel')) {
+            parallel project.property('testng.parallel')
+        }
+        if (project.hasProperty('testng.threadCount')) {
+            threadCount project.property('testng.threadCount') as int
+        }
+        if (project.hasProperty('testng.includeGroups')) {
+            includeGroups project.property('testng.includeGroups')
+        }
+        if (project.hasProperty('testng.excludeGroups')) {
+            excludeGroups project.property('testng.excludeGroups')
+        }
+    }
+
+    if (project.hasProperty('credentials')) {
+        systemProperty('external.credentials.file', project.property('credentials'))
+    }
+
+    if (project.hasProperty('chrome')) {
+        dependsOn downloadAndUnzipChromeDriver
+        systemProperties([
+                'webdriver.chrome.driver': "${downloadAndUnzipChromeDriver.destinationDir}/chromedriver",
+                'fluentlenium.webDriver' : 'chrome'
+        ])
+    } else if (project.hasProperty('firefox')) {
+        dependsOn downloadAndUnzipGeckoDriver
+        systemProperties([
+                'webdriver.gecko.driver': "${downloadAndUnzipGeckoDriver.destinationDir}/geckodriver",
+                'fluentlenium.webDriver': 'firefox'
+        ])
+    } else {
+        systemProperties([
+                'fluentlenium.webDriver': 'remote',
+                'fluentlenium.remoteUrl': 'http://opensource-demo.orangehrmlive.com:4444/wd/hub'
+        ])
+    }
+}

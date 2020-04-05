@@ -1,0 +1,6 @@
+
+# ignore
+/.gradle/
+/.idea/
+/build/
+/webdriver/
