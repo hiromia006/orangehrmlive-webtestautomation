@@ -1,9 +1,10 @@
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
 <suite name="Smoke Suite">
-    <test name="Global Area Test">
+    <test name="Smoke Suite">
         <classes>
-<!--            <class name="com.orangehrmlive.web.UserTest"/>-->
-<!--            <class name="com.orangehrmlive.web.UserListTest"/>-->
+            <class name="com.orangehrmlive.web.fluentlenium.test.LoginTest"/>
+            <class name="com.orangehrmlive.web.fluentlenium.test.admin.UserTest"/>
+            <class name="com.orangehrmlive.web.fluentlenium.test.admin.UserListTest"/>
             <class name="com.orangehrmlive.web.fluentlenium.test.pim.CustomFieldTest"/>
 
         </classes>
